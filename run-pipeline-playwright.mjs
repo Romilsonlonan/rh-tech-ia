@@ -96,10 +96,21 @@ async function runPipeline() {
       const { phase, name, command } = check;
 
       if (phase !== currentPhase) {
+        // Desativar blink da fase anterior
+        if (currentPhase) {
+          await page.evaluate((p) => {
+            const el = document.querySelector(`.phase.${p}`);
+            if (el) el.classList.remove('blink');
+          }, currentPhase);
+        }
+        
         currentPhase = phase;
         await page.evaluate((p) => {
           const el = document.querySelector(`.phase.${p}`);
-          if (el) el.classList.add('active');
+          if (el) {
+            el.classList.add('active');
+            el.classList.add('blink');
+          }
         }, phase);
         await addLog(page, 'info', `Iniciando fase ${PHASES[phase].label}`);
       }
@@ -141,16 +152,18 @@ async function runPipeline() {
     const hasFailed = allChecks.some((c, i) => c._status === 'failed');
 
     await updateSummary(page, allChecks);
-    await page.evaluate((time) => {
-      const finalStatus = document.getElementById('finalStatus');
+    await page.evaluate(() => {
+      // Remover blink de todas as fases
+      document.querySelectorAll('.phase').forEach(el => el.classList.remove('blink'));
       const progressFill = document.getElementById('progressFill');
       if (progressFill) {
         progressFill.style.width = '100%';
         progressFill.className = 'fill success';
       }
+      const finalStatus = document.getElementById('finalStatus');
       if (finalStatus) {
         finalStatus.className = 'final-status success';
-        finalStatus.innerHTML = `✅ PIPELINE CONCLUÍDO COM SUCESSO (${time}s)`;
+        finalStatus.innerHTML = `✅ PIPELINE CONCLUÍDO COM SUCESSO (${totalTime}s)`;
       }
     }, totalTime);
 
@@ -220,6 +233,11 @@ async function updateCheck(page, phase, index, status, duration) {
       statusEl.className = `check-status ${status}`;
       statusEl.textContent = STATUS[status].label;
     }
+    
+    // Marcar como done se não está mais rodando
+    if (status !== 'running') {
+      checkEl.classList.add('done');
+    }
   }, { phase, index, status, duration });
 }
 
@@ -263,6 +281,32 @@ header .subtitle { color: #94a3b8; font-size: 0.9rem; }
 .phases { display: flex; gap: 20px; margin-bottom: 30px; }
 .phase { flex: 1; border-radius: 12px; padding: 20px; border: 2px solid; transition: all 0.3s ease; opacity: 0.6; }
 .phase.active { opacity: 1; transform: scale(1.02); box-shadow: 0 0 30px rgba(255,255,255,0.1); }
+.phase.blink { animation: pulse-glow 1s ease-in-out infinite; }
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,255,255,0.1); }
+  50% { box-shadow: 0 0 40px rgba(255,255,255,0.4); }
+}
+.phase.INICIO.blink { animation-name: pulse-glow-red; }
+@keyframes pulse-glow-red {
+  0%, 100% { box-shadow: 0 0 10px rgba(239,68,68,0.3); border-color: #ef4444; }
+  50% { box-shadow: 0 0 50px rgba(239,68,68,0.8); border-color: #ff6b6b; }
+}
+.phase.MEIO.blink { animation-name: pulse-glow-yellow; }
+@keyframes pulse-glow-yellow {
+  0%, 100% { box-shadow: 0 0 10px rgba(234,179,8,0.3); border-color: #eab308; }
+  50% { box-shadow: 0 0 50px rgba(234,179,8,0.8); border-color: #fbbf24; }
+}
+.phase.FIM.blink { animation-name: pulse-glow-green; }
+@keyframes pulse-glow-green {
+  0%, 100% { box-shadow: 0 0 10px rgba(34,197,94,0.3); border-color: #22c55e; }
+  50% { box-shadow: 0 0 50px rgba(34,197,94,0.8); border-color: #4ade80; }
+}
+.check.running { animation: check-blink 0.5s ease-in-out infinite; }
+@keyframes check-blink {
+  0%, 100% { background: rgba(234,179,8,0.3); }
+  50% { background: rgba(234,179,8,0.6); }
+}
+.check.done { opacity: 0.7; }
 .phase.INICIO { background: rgba(239,68,68,0.1); border-color: #ef4444; }
 .phase.MEIO { background: rgba(234,179,8,0.1); border-color: #eab308; }
 .phase.FIM { background: rgba(34,197,94,0.1); border-color: #22c55e; }
