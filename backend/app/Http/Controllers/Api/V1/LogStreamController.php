@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\Console\Output\BufferedOutput;
 
 class LogStreamController extends Controller
 {
@@ -16,7 +16,7 @@ class LogStreamController extends Controller
     {
         $channel = $request->get('channel', 'single');
 
-        return response()->stream(function () use ($channel) {
+        return response()->stream(function () {
             $logFile = storage_path('logs/laravel.log');
 
             while (true) {
@@ -57,7 +57,7 @@ class LogStreamController extends Controller
         ]);
     }
 
-    public function log(Request $request): \Illuminate\Http\JsonResponse
+    public function log(Request $request): JsonResponse
     {
         $request->validate([
             'level' => 'required|in:debug,info,notice,warning,error,critical',
@@ -79,7 +79,7 @@ class LogStreamController extends Controller
         ]);
     }
 
-    public function pipelineStatus(Request $request): \Illuminate\Http\JsonResponse
+    public function pipelineStatus(Request $request): JsonResponse
     {
         $request->validate([
             'status' => 'required|in:started,running,success,warning,failed,completed',
@@ -110,7 +110,7 @@ class LogStreamController extends Controller
         ]);
     }
 
-    public function clearLogs(Request $request): \Illuminate\Http\JsonResponse
+    public function clearLogs(Request $request): JsonResponse
     {
         $logFile = storage_path('logs/laravel.log');
         if (file_exists($logFile)) {
@@ -130,7 +130,7 @@ class LogStreamController extends Controller
 
     private function getRecentLogs(string $logFile, int $lines = 50): array
     {
-        if (!file_exists($logFile)) {
+        if (! file_exists($logFile)) {
             return [];
         }
 
@@ -142,7 +142,7 @@ class LogStreamController extends Controller
         $logs = [];
 
         $file->seek($startLine);
-        while (!$file->eof()) {
+        while (! $file->eof()) {
             $line = trim($file->current());
             if ($line) {
                 $logs[] = $this->parseLogLine($line);
@@ -180,7 +180,7 @@ class LogStreamController extends Controller
     {
         $statusFile = storage_path('logs/pipeline_status.json');
 
-        if (!file_exists($statusFile)) {
+        if (! file_exists($statusFile)) {
             return null;
         }
 

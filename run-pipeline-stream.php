@@ -13,16 +13,18 @@ declare(strict_types=1);
 
 declare(strict_types=1);
 
-$dotenvFile = __DIR__ . '/backend/.env';
+$dotenvFile = __DIR__.'/backend/.env';
 if (file_exists($dotenvFile)) {
     $lines = file($dotenvFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
-        if (str_starts_with(trim($line), '#')) continue;
+        if (str_starts_with(trim($line), '#')) {
+            continue;
+        }
         if (str_contains($line, '=')) {
             [$key, $value] = explode('=', $line, 2);
             $key = trim($key);
             $value = trim($value);
-            if (!empty($key) && !isset($_ENV[$key])) {
+            if (! empty($key) && ! isset($_ENV[$key])) {
                 $_ENV[$key] = $value;
                 putenv("{$key}={$value}");
             }
@@ -71,7 +73,7 @@ function sendPipelineStatus(string $status, string $phase, string $step, ?string
 {
     global $backendUrl, $apiToken;
 
-    if (!$apiToken) {
+    if (! $apiToken) {
         return;
     }
 
@@ -80,7 +82,7 @@ function sendPipelineStatus(string $status, string $phase, string $step, ?string
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $apiToken,
+            'Authorization: Bearer '.$apiToken,
             'Content-Type: application/json',
         ],
         CURLOPT_POSTFIELDS => json_encode([
@@ -100,7 +102,7 @@ function sendLog(string $level, string $message, array $context = []): void
 {
     global $backendUrl, $apiToken;
 
-    if (!$apiToken) {
+    if (! $apiToken) {
         return;
     }
 
@@ -109,7 +111,7 @@ function sendLog(string $level, string $message, array $context = []): void
         CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $apiToken,
+            'Authorization: Bearer '.$apiToken,
             'Content-Type: application/json',
         ],
         CURLOPT_POSTFIELDS => json_encode([
@@ -126,9 +128,9 @@ function sendLog(string $level, string $message, array $context = []): void
 function drawHeader(): void
 {
     echo "\033[2J\033[H";
-    echo "\033[1m\033[97m" . str_repeat('=', 90) . "\033[0m\n";
+    echo "\033[1m\033[97m".str_repeat('=', 90)."\033[0m\n";
     echo "\033[1m\033[97m  🔍 RH Tech IA - Pipeline Runner (Streaming)\033[0m\n";
-    echo "\033[1m\033[97m" . str_repeat('=', 90) . "\033[0m\n\n";
+    echo "\033[1m\033[97m".str_repeat('=', 90)."\033[0m\n\n";
 }
 
 function drawPhaseHeader(string $phase): void
@@ -143,7 +145,7 @@ function drawPhaseHeader(string $phase): void
 
     echo "\n";
     echo "{$color}\033[1m┌────────────────────────────────────────────────────────────┐\033[0m\n";
-    echo "{$color}\033[1m│ {$config['icon']} {$config['label']}" . str_repeat(' ', 47) . "│\033[0m\n";
+    echo "{$color}\033[1m│ {$config['icon']} {$config['label']}".str_repeat(' ', 47)."│\033[0m\n";
     echo "{$color}\033[1m└────────────────────────────────────────────────────────────┘\033[0m\n";
     echo "\n";
 }
@@ -153,7 +155,7 @@ function drawCheck(int $index, array $check): void
     $color = STATUS_COLORS[$check['status']] ?? "\033[97m";
     $icon = STATUS_ICONS[$check['status']] ?? '⬜';
 
-    $num = str_pad((string)($index + 1), 2, '0', STR_PAD_LEFT);
+    $num = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
     $duration = number_format($check['duration'], 2);
 
     echo "  {$icon} \033[1m{$color}[{$num}]\033[0m ";
@@ -171,12 +173,12 @@ function drawCheck(int $index, array $check): void
     echo $statusText;
     echo " \033[90m[{$duration}s]\033[0m\n";
 
-    if (!empty($check['output']) && $check['status'] !== 'pending') {
+    if (! empty($check['output']) && $check['status'] !== 'pending') {
         $lines = array_filter(explode("\n", $check['output']));
         foreach (array_slice($lines, 0, 3) as $line) {
             $line = trim($line);
             if ($line) {
-                echo "     \033[90m├─ " . substr($line, 0, 70) . "\033[0m\n";
+                echo "     \033[90m├─ ".substr($line, 0, 70)."\033[0m\n";
             }
         }
     }
@@ -184,25 +186,25 @@ function drawCheck(int $index, array $check): void
 
 function drawSummary(array $checks, float $totalTime): void
 {
-    $success = count(array_filter($checks, fn($c) => $c['status'] === 'success'));
-    $warnings = count(array_filter($checks, fn($c) => $c['status'] === 'warning'));
-    $failed = count(array_filter($checks, fn($c) => $c['status'] === 'failed'));
-    $skipped = count(array_filter($checks, fn($c) => $c['status'] === 'skipped'));
+    $success = count(array_filter($checks, fn ($c) => $c['status'] === 'success'));
+    $warnings = count(array_filter($checks, fn ($c) => $c['status'] === 'warning'));
+    $failed = count(array_filter($checks, fn ($c) => $c['status'] === 'failed'));
+    $skipped = count(array_filter($checks, fn ($c) => $c['status'] === 'skipped'));
 
     echo "\n";
-    echo "\033[1m\033[97m" . str_repeat('=', 90) . "\033[0m\n";
+    echo "\033[1m\033[97m".str_repeat('=', 90)."\033[0m\n";
     echo "\033[1m\033[97m  📊 RESUMO DO PIPELINE\033[0m\n";
-    echo "\033[1m\033[97m" . str_repeat('=', 90) . "\033[0m\n";
+    echo "\033[1m\033[97m".str_repeat('=', 90)."\033[0m\n";
     echo "\n";
 
-    echo "  ┌" . str_repeat('─', 82) . "┐\n";
+    echo '  ┌'.str_repeat('─', 82)."┐\n";
     echo "  │  \033[92m🟩 {$success} Sucesso   \033[0m";
     echo "\033[93m🟨 {$warnings} Avisos   \033[0m";
     echo "\033[91m🟥 {$failed} Falhas   \033[0m";
     echo "\033[90m⬜ {$skipped} Pulados   \033[0m";
-    echo str_repeat(' ', 22) . "│\n";
-    echo "  │  \033[97m⏱ Tempo Total: " . number_format($totalTime, 1) . "s\033[0m" . str_repeat(' ', 62) . "│\n";
-    echo "  └" . str_repeat('─', 82) . "┘\n";
+    echo str_repeat(' ', 22)."│\n";
+    echo "  │  \033[97m⏱ Tempo Total: ".number_format($totalTime, 1)."s\033[0m".str_repeat(' ', 62)."│\n";
+    echo '  └'.str_repeat('─', 82)."┘\n";
     echo "\n";
 
     if ($failed > 0) {
@@ -324,7 +326,7 @@ foreach ($checks as $index => &$check) {
 $totalTime = microtime(true) - $startTime;
 drawSummary($checks, $totalTime);
 
-$hasFailed = array_filter($checks, fn($c) => $c['status'] === 'failed');
+$hasFailed = array_filter($checks, fn ($c) => $c['status'] === 'failed');
 $finalStatus = empty($hasFailed) ? 'completed' : 'failed';
 sendPipelineStatus($finalStatus, 'FIM', 'Pipeline', $finalStatus === 'completed' ? 'Pipeline concluído com sucesso' : 'Pipeline falhou', ['totalTime' => $totalTime, 'checks' => count($checks)]);
 
