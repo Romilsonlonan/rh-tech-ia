@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Telemetry\OpenTelemetryService;
+use Illuminate\Console\Command;
 
 class PipelineVisualCommand extends Command
 {
@@ -22,7 +22,9 @@ class PipelineVisualCommand extends Command
     ];
 
     private array $checks = [];
+
     private float $startTime;
+
     private ?OpenTelemetryService $telemetry = null;
 
     public function handle(): int
@@ -57,17 +59,17 @@ class PipelineVisualCommand extends Command
                 break;
             }
 
-            $this->line("");
+            $this->line('');
         }
 
         $this->drawSummary();
 
         if ($this->telemetry) {
-            $this->telemetry->recordSpanStatus('pipeline.run', count(array_filter($this->checks, fn($c) => $c['status'] === 'failed')) === 0);
+            $this->telemetry->recordSpanStatus('pipeline.run', count(array_filter($this->checks, fn ($c) => $c['status'] === 'failed')) === 0);
             $this->telemetry->endSpan('pipeline.run');
         }
 
-        return count(array_filter($this->checks, fn($c) => $c['status'] === 'failed')) > 0 ? 1 : 0;
+        return count(array_filter($this->checks, fn ($c) => $c['status'] === 'failed')) > 0 ? 1 : 0;
     }
 
     private function initChecks(string $type): void
@@ -132,16 +134,16 @@ class PipelineVisualCommand extends Command
 
         if ($rand <= 70) {
             $check['status'] = 'success';
-            $check['output'] = "✓ Verificação concluída com sucesso";
+            $check['output'] = '✓ Verificação concluída com sucesso';
         } elseif ($rand <= 85) {
             $check['status'] = 'warning';
-            $check['output'] = "⚠ 2 warnings encontrados (não críticos)";
+            $check['output'] = '⚠ 2 warnings encontrados (não críticos)';
         } elseif ($rand <= 95) {
             $check['status'] = 'skipped';
-            $check['output'] = "⊘ Pulado - não aplicável neste ambiente";
+            $check['output'] = '⊘ Pulado - não aplicável neste ambiente';
         } else {
             $check['status'] = 'failed';
-            $check['output'] = "✗ Falhou: referência indefinida em config.php linha 42";
+            $check['output'] = '✗ Falhou: referência indefinida em config.php linha 42';
         }
     }
 
@@ -155,9 +157,9 @@ class PipelineVisualCommand extends Command
     private function drawHeader(): void
     {
         $this->output->writeln('');
-        $this->output->writeln('<fg=white;options=bold>' . str_repeat('=', 90) . '</>');
+        $this->output->writeln('<fg=white;options=bold>'.str_repeat('=', 90).'</>');
         $this->output->writeln('<fg=white;options=bold>  🔍 RH Tech IA - Visual Pipeline Runner</>');
-        $this->output->writeln('<fg=white;options=bold>' . str_repeat('=', 90) . '</>');
+        $this->output->writeln('<fg=white;options=bold>'.str_repeat('=', 90).'</>');
         $this->output->writeln('');
     }
 
@@ -186,7 +188,7 @@ class PipelineVisualCommand extends Command
 
         $this->output->writeln('');
         $this->output->writeln("{$color}<options=bold>┌────────────────────────────────────────────────────────────┐</>");
-        $this->output->writeln("{$color}<options=bold>│ {$config['icon']} {$config['label']}" . str_repeat(' ', 44) . "│</>");
+        $this->output->writeln("{$color}<options=bold>│ {$config['icon']} {$config['label']}".str_repeat(' ', 44).'│</>');
         $this->output->writeln("{$color}<options=bold>└────────────────────────────────────────────────────────────┘</>");
         $this->output->writeln('');
     }
@@ -203,7 +205,7 @@ class PipelineVisualCommand extends Command
             default => ['icon' => '⬜', 'color' => 'gray', 'text' => '???'],
         };
 
-        $num = str_pad((string)($index + 1), 2, '0', STR_PAD_LEFT);
+        $num = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
         $duration = number_format($check['duration'], 2);
 
         $color = match ($statusConfig['color']) {
@@ -234,7 +236,7 @@ class PipelineVisualCommand extends Command
             foreach (array_slice($lines, 0, 3) as $line) {
                 $line = trim($line);
                 if ($line) {
-                    $this->output->writeln("     <fg=gray>├─ " . substr($line, 0, 70) . "</>");
+                    $this->output->writeln('     <fg=gray>├─ '.substr($line, 0, 70).'</>');
                 }
             }
         }
@@ -243,25 +245,25 @@ class PipelineVisualCommand extends Command
     private function drawSummary(): void
     {
         $totalTime = number_format(microtime(true) - $this->startTime, 1);
-        $success = count(array_filter($this->checks, fn($c) => $c['status'] === 'success'));
-        $warnings = count(array_filter($this->checks, fn($c) => $c['status'] === 'warning'));
-        $failed = count(array_filter($this->checks, fn($c) => $c['status'] === 'failed'));
-        $skipped = count(array_filter($this->checks, fn($c) => $c['status'] === 'skipped'));
+        $success = count(array_filter($this->checks, fn ($c) => $c['status'] === 'success'));
+        $warnings = count(array_filter($this->checks, fn ($c) => $c['status'] === 'warning'));
+        $failed = count(array_filter($this->checks, fn ($c) => $c['status'] === 'failed'));
+        $skipped = count(array_filter($this->checks, fn ($c) => $c['status'] === 'skipped'));
 
         $this->output->writeln('');
-        $this->output->writeln('<fg=white;options=bold>' . str_repeat('=', 90) . '</>');
+        $this->output->writeln('<fg=white;options=bold>'.str_repeat('=', 90).'</>');
         $this->output->writeln('<fg=white;options=bold>  📊 RESUMO DO PIPELINE</>');
-        $this->output->writeln('<fg=white;options=bold>' . str_repeat('=', 90) . '</>');
+        $this->output->writeln('<fg=white;options=bold>'.str_repeat('=', 90).'</>');
         $this->output->writeln('');
 
-        $this->output->writeln('  ┌' . str_repeat('─', 82) . '┐');
+        $this->output->writeln('  ┌'.str_repeat('─', 82).'┐');
         $this->output->write("  │  <fg=green>🟩 {$success} Sucesso   </>");
         $this->output->write("<fg=yellow>🟨 {$warnings} Avisos   </>");
         $this->output->write("<fg=red>🟥 {$failed} Falhas   </>");
         $this->output->write("<fg=gray>⬜ {$skipped} Pulados   </>");
-        $this->output->writeln(str_repeat(' ', 22) . '│');
-        $this->output->writeln("  │  <fg=white>⏱ Tempo Total: {$totalTime}s</>" . str_repeat(' ', 62) . '│');
-        $this->output->writeln('  └' . str_repeat('─', 82) . '┘');
+        $this->output->writeln(str_repeat(' ', 22).'│');
+        $this->output->writeln("  │  <fg=white>⏱ Tempo Total: {$totalTime}s</>".str_repeat(' ', 62).'│');
+        $this->output->writeln('  └'.str_repeat('─', 82).'┘');
         $this->output->writeln('');
 
         if ($failed > 0) {

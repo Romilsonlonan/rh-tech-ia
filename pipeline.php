@@ -17,22 +17,37 @@ namespace App\Pipeline;
 class VisualPipeline
 {
     private const ESC = "\033";
-    private const RESET = self::ESC . "[0m";
-    private const BOLD = self::ESC . "[1m";
-    private const RED = self::ESC . "[38;5;196m";
-    private const GREEN = self::ESC . "[38;5;82m";
-    private const YELLOW = self::ESC . "[38;5;226m";
-    private const BLUE = self::ESC . "[38;5;75m";
-    private const WHITE = self::ESC . "[38;5;255m";
-    private const GRAY = self::ESC . "[38;5;240m";
-    private const BG_RED = self::ESC . "[48;5;196m";
-    private const BG_GREEN = self::ESC . "[48;5;82m";
-    private const BG_YELLOW = self::ESC . "[48;5;226m";
-    private const BG_BLUE = self::ESC . "[48;5;75m";
-    private const BG_GRAY = self::ESC . "[48;5;240m";
+
+    private const RESET = self::ESC.'[0m';
+
+    private const BOLD = self::ESC.'[1m';
+
+    private const RED = self::ESC.'[38;5;196m';
+
+    private const GREEN = self::ESC.'[38;5;82m';
+
+    private const YELLOW = self::ESC.'[38;5;226m';
+
+    private const BLUE = self::ESC.'[38;5;75m';
+
+    private const WHITE = self::ESC.'[38;5;255m';
+
+    private const GRAY = self::ESC.'[38;5;240m';
+
+    private const BG_RED = self::ESC.'[48;5;196m';
+
+    private const BG_GREEN = self::ESC.'[48;5;82m';
+
+    private const BG_YELLOW = self::ESC.'[48;5;226m';
+
+    private const BG_BLUE = self::ESC.'[48;5;75m';
+
+    private const BG_GRAY = self::ESC.'[48;5;240m';
 
     private array $checks = [];
+
     private float $startTime;
+
     private string $mode = 'all';
 
     public function __construct()
@@ -68,6 +83,7 @@ class VisualPipeline
         }
 
         $this->drawFooter();
+
         return $this->getExitCode();
     }
 
@@ -216,17 +232,17 @@ class VisualPipeline
 
     private function clearScreen(): void
     {
-        echo self::ESC . "[2J";
-        echo self::ESC . "[H";
+        echo self::ESC.'[2J';
+        echo self::ESC.'[H';
     }
 
     private function drawHeader(): void
     {
         $width = 100;
         echo "\n";
-        echo self::BOLD . self::WHITE . str_repeat("=", $width) . self::RESET . "\n";
-        echo self::BOLD . self::WHITE . "  🔍 RH Tech IA - Visual Pipeline Runner" . self::RESET . "\n";
-        echo self::BOLD . self::WHITE . str_repeat("=", $width) . self::RESET . "\n";
+        echo self::BOLD.self::WHITE.str_repeat('=', $width).self::RESET."\n";
+        echo self::BOLD.self::WHITE.'  🔍 RH Tech IA - Visual Pipeline Runner'.self::RESET."\n";
+        echo self::BOLD.self::WHITE.str_repeat('=', $width).self::RESET."\n";
         echo "\n";
     }
 
@@ -252,9 +268,9 @@ class VisualPipeline
         };
 
         echo "\n";
-        echo self::BOLD . $phaseConfig['color'] . "┌" . str_repeat("─", 60) . "┐" . self::RESET . "\n";
-        echo self::BOLD . $phaseConfig['color'] . "│ " . $phaseConfig['icon'] . " " . $phaseConfig['desc'] . str_repeat(" ", 47) . "│" . self::RESET . "\n";
-        echo self::BOLD . $phaseConfig['color'] . "└" . str_repeat("─", 60) . "┘" . self::RESET . "\n";
+        echo self::BOLD.$phaseConfig['color'].'┌'.str_repeat('─', 60).'┐'.self::RESET."\n";
+        echo self::BOLD.$phaseConfig['color'].'│ '.$phaseConfig['icon'].' '.$phaseConfig['desc'].str_repeat(' ', 47).'│'.self::RESET."\n";
+        echo self::BOLD.$phaseConfig['color'].'└'.str_repeat('─', 60).'┘'.self::RESET."\n";
         echo "\n";
     }
 
@@ -270,28 +286,28 @@ class VisualPipeline
             default => ['box' => '⬜', 'color' => self::GRAY, 'text' => '???'],
         };
 
-        $num = str_pad((string)($index + 1), 2, '0', STR_PAD_LEFT);
+        $num = str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT);
         $duration = number_format($check['duration'], 2);
 
         echo "  {$statusConfig['box']} ";
-        echo self::BOLD . $statusConfig['color'] . "[{$num}] " . self::RESET;
-        echo self::BOLD . self::WHITE . str_pad($check['name'], 20, ' ', STR_PAD_RIGHT) . self::RESET;
+        echo self::BOLD.$statusConfig['color']."[{$num}] ".self::RESET;
+        echo self::BOLD.self::WHITE.str_pad($check['name'], 20, ' ', STR_PAD_RIGHT).self::RESET;
 
         if ($check['status'] === 'running') {
-            echo self::YELLOW . "▓▓▓▓▓▓▓▓▓░░░░░░░░ 50%  " . self::RESET;
+            echo self::YELLOW.'▓▓▓▓▓▓▓▓▓░░░░░░░░ 50%  '.self::RESET;
         } elseif ($check['status'] === 'success') {
-            echo self::GREEN . "{$statusConfig['text']} " . self::RESET;
+            echo self::GREEN."{$statusConfig['text']} ".self::RESET;
         } elseif ($check['status'] === 'warning') {
-            echo self::YELLOW . "{$statusConfig['text']} " . self::RESET;
+            echo self::YELLOW."{$statusConfig['text']} ".self::RESET;
         } elseif ($check['status'] === 'failed') {
-            echo self::RED . "{$statusConfig['text']} " . self::RESET;
+            echo self::RED."{$statusConfig['text']} ".self::RESET;
         } elseif ($check['status'] === 'skipped') {
-            echo self::GRAY . "{$statusConfig['text']} " . self::RESET;
+            echo self::GRAY."{$statusConfig['text']} ".self::RESET;
         } else {
-            echo self::GRAY . "{$statusConfig['text']} " . self::RESET;
+            echo self::GRAY."{$statusConfig['text']} ".self::RESET;
         }
 
-        echo self::GRAY . "[{$duration}s]" . self::RESET . "\n";
+        echo self::GRAY."[{$duration}s]".self::RESET."\n";
 
         if ($check['output'] && $check['status'] !== 'pending') {
             $lines = array_filter(explode("\n", $check['output']));
@@ -299,8 +315,8 @@ class VisualPipeline
             foreach ($outputLines as $line) {
                 $line = trim($line);
                 if ($line) {
-                    echo "     " . self::GRAY . "├─ " . self::RESET;
-                    echo self::GRAY . substr($line, 0, 70) . self::RESET . "\n";
+                    echo '     '.self::GRAY.'├─ '.self::RESET;
+                    echo self::GRAY.substr($line, 0, 70).self::RESET."\n";
                 }
             }
         }
@@ -309,37 +325,37 @@ class VisualPipeline
     private function drawFooter(): void
     {
         $totalTime = number_format(microtime(true) - $this->startTime, 2);
-        $success = count(array_filter($this->checks, fn($c) => $c['status'] === 'success'));
-        $warnings = count(array_filter($this->checks, fn($c) => $c['status'] === 'warning'));
-        $failed = count(array_filter($this->checks, fn($c) => $c['status'] === 'failed'));
-        $skipped = count(array_filter($this->checks, fn($c) => $c['status'] === 'skipped'));
+        $success = count(array_filter($this->checks, fn ($c) => $c['status'] === 'success'));
+        $warnings = count(array_filter($this->checks, fn ($c) => $c['status'] === 'warning'));
+        $failed = count(array_filter($this->checks, fn ($c) => $c['status'] === 'failed'));
+        $skipped = count(array_filter($this->checks, fn ($c) => $c['status'] === 'skipped'));
 
         echo "\n";
-        echo self::BOLD . self::WHITE . str_repeat("=", 100) . self::RESET . "\n";
-        echo self::BOLD . self::WHITE . "  📊 RESUMO DO PIPELINE" . self::RESET . "\n";
-        echo self::BOLD . self::WHITE . str_repeat("=", 100) . self::RESET . "\n";
+        echo self::BOLD.self::WHITE.str_repeat('=', 100).self::RESET."\n";
+        echo self::BOLD.self::WHITE.'  📊 RESUMO DO PIPELINE'.self::RESET."\n";
+        echo self::BOLD.self::WHITE.str_repeat('=', 100).self::RESET."\n";
 
         echo "\n";
-        echo "  ┌" . str_repeat("─", 95) . "┐\n";
+        echo '  ┌'.str_repeat('─', 95)."┐\n";
 
-        $statusBar = "  │  ";
-        $statusBar .= self::GREEN . "🟩 {$success} Sucesso  " . self::RESET;
-        $statusBar .= self::YELLOW . "🟨 {$warnings} Avisos  " . self::RESET;
-        $statusBar .= self::RED . "🟥 {$failed} Falhas  " . self::RESET;
-        $statusBar .= self::GRAY . "⬜ {$skipped} Pulados  " . self::RESET;
-        $statusBar .= str_repeat(" ", 20) . "│\n";
+        $statusBar = '  │  ';
+        $statusBar .= self::GREEN."🟩 {$success} Sucesso  ".self::RESET;
+        $statusBar .= self::YELLOW."🟨 {$warnings} Avisos  ".self::RESET;
+        $statusBar .= self::RED."🟥 {$failed} Falhas  ".self::RESET;
+        $statusBar .= self::GRAY."⬜ {$skipped} Pulados  ".self::RESET;
+        $statusBar .= str_repeat(' ', 20)."│\n";
         echo $statusBar;
 
-        echo "  │  " . self::WHITE . "⏱ Tempo Total: {$totalTime}s" . str_repeat(" ", 60) . self::RESET . "│\n";
-        echo "  └" . str_repeat("─", 95) . "┘\n";
+        echo '  │  '.self::WHITE."⏱ Tempo Total: {$totalTime}s".str_repeat(' ', 60).self::RESET."│\n";
+        echo '  └'.str_repeat('─', 95)."┘\n";
 
         $exitCode = $this->getExitCode();
         if ($exitCode === 0) {
             echo "\n";
-            echo self::BG_GREEN . self::BOLD . self::WHITE . "  ✅ PIPELINE CONCLUÍDO COM SUCESSO  " . self::RESET . "\n";
+            echo self::BG_GREEN.self::BOLD.self::WHITE.'  ✅ PIPELINE CONCLUÍDO COM SUCESSO  '.self::RESET."\n";
         } else {
             echo "\n";
-            echo self::BG_RED . self::BOLD . self::WHITE . "  ❌ PIPELINE FALHOU - CORRIJA OS ERROS ACIMA  " . self::RESET . "\n";
+            echo self::BG_RED.self::BOLD.self::WHITE.'  ❌ PIPELINE FALHOU - CORRIJA OS ERROS ACIMA  '.self::RESET."\n";
         }
 
         echo "\n";
@@ -347,12 +363,13 @@ class VisualPipeline
 
     private function getExitCode(): int
     {
-        $hasFailed = array_filter($this->checks, fn($c) => $c['status'] === 'failed');
+        $hasFailed = array_filter($this->checks, fn ($c) => $c['status'] === 'failed');
+
         return empty($hasFailed) ? 0 : 1;
     }
 }
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__.'/vendor/autoload.php';
 
-$pipeline = new VisualPipeline();
+$pipeline = new VisualPipeline;
 exit($pipeline->run());
