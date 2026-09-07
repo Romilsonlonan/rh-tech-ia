@@ -2,21 +2,21 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 
 class RateLimitingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->configureRateLimiting();
+        //
     }
 
     public function boot(): void
     {
-        //
+        $this->configureRateLimiting();
     }
 
     protected function configureRateLimiting(): void
@@ -28,7 +28,7 @@ class RateLimitingServiceProvider extends ServiceProvider
 
         // Login attempts
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip() . '|' . $request->email);
+            return Limit::perMinute(5)->by($request->ip().'|'.$request->email);
         });
 
         // Registration
@@ -38,7 +38,7 @@ class RateLimitingServiceProvider extends ServiceProvider
 
         // Password reset
         RateLimiter::for('password-reset', function (Request $request) {
-            return Limit::perHour(3)->by($request->ip() . '|' . $request->email);
+            return Limit::perHour(3)->by($request->ip().'|'.$request->email);
         });
     }
 }
