@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLogStream, LogEntry, PipelineStatus } from '../../hooks/useLogStream';
+import { useLogStream, LogEntry } from '../../hooks/useLogStream';
 
 interface LogViewerProps {
   autoOpen?: boolean;
@@ -61,7 +61,6 @@ const STATUS_CONFIG = {
 export function LogViewer({
   autoOpen = false,
   maxHeight = '400px',
-  showPipelineOnly = false,
 }: LogViewerProps) {
   const [isOpen, setIsOpen] = useState(autoOpen);
   const [filter, setFilter] = useState<string>('');
@@ -72,7 +71,6 @@ export function LogViewer({
     pipelineStatus,
     connected,
     clearLogs,
-    updatePipelineStatus,
   } = useLogStream({
     enabled: isOpen,
     maxLogs: 200,
