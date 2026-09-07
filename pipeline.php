@@ -76,9 +76,9 @@ class VisualPipeline
 
         foreach ($this->checks as $index => &$check) {
             $check['status'] = 'running';
-            $this->updateCheck($index);
+            $this->drawPipeline();
             $this->runCheck($check);
-            $this->updateCheck($index);
+            $check['status'] = $check['status'] ?? 'success';
             $this->drawPipeline();
         }
 
@@ -368,8 +368,6 @@ class VisualPipeline
         return empty($hasFailed) ? 0 : 1;
     }
 }
-
-require_once __DIR__.'/vendor/autoload.php';
 
 $pipeline = new VisualPipeline;
 exit($pipeline->run());
