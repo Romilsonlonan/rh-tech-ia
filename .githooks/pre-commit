@@ -1,0 +1,169 @@
+#!/bin/bash
+# ===========================================
+# Pre-Commit Hook - Security Scanner
+# ===========================================
+
+set -e
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${YELLOW}🔍 Running security checks...${NC}"
+
+ERRORS=0
+
+# ===========================================
+# 1. BLOCK ALL .env* FILES (CRITICAL)
+# ===========================================
+ENV_FILES=$(git diff --cached --name-only | grep -E '^\.env' || true)
+if [ -n "$ENV_FILES" ]; then
+    echo -e "${RED}❌ BLOCKED: .env file(s) detected:${NC}"
+    echo "$ENV_FILES"
+    echo -e "${RED}   NEVER commit .env files. Use .env.example template only.${NC}"
+    ERRORS=$((ERRORS + 1))
+fi
+
+# ===========================================
+# 2. SCAN ALL CODE FILES FOR SECRETS
+# ===========================================
+echo -e "${YELLOW}   Scanning code for secrets...${NC}"
+
+# Get ALL staged files
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -n "$STAGED_FILES" ]; then
+    DIFF_CONTENT=$(git diff --cached -p --diff-filter=ACM)
+    
+    # AWS Keys
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*AKIA[0-9A-Z]{16}"; then
+        echo -e "${RED}❌ BLOCKED: AWS Access Key detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+    
+    # OpenAI Keys
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*sk-[0-9a-zA-Z]{40,}"; then
+        echo -e "${RED}❌ BLOCKED: OpenAI API Key detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+    
+    # GitHub Tokens
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*ghp_[0-9a-zA-Z]{36}"; then
+        echo -e "${RED}❌ BLOCKED: GitHub Token detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+    
+    # GitLab Tokens
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*glpat-[0-9a-zA-Z]{20}"; then
+        echo -e "${RED}❌ BLOCKED: GitLab Token detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+    
+    # Slack Tokens
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*xox[baprs]-[0-9a-zA-Z]{10,48}"; then
+        echo -e "${RED}❌ BLOCKED: Slack Token detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+    
+    # Private Keys
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"; then
+        echo -e "${RED}❌ BLOCKED: Private Key detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+    
+    # MongoDB credentials
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*mongodb\+srv://[^:]+:[^@]+@"; then
+        echo -e "${RED}❌ BLOCKED: MongoDB credentials detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+    
+    # Generic API keys in code (not examples)
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*(api_key|apiKey|API_KEY)\s*=\s*['\"][0-9a-zA-Z]{20,}['\"]"; then
+        echo -e "${RED}❌ BLOCKED: Hardcoded API key detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+    
+    # Notion tokens
+    if echo "$DIFF_CONTENT" | grep -qE "^\+.*secret_[0-9a-zA-Z]{40,}"; then
+        echo -e "${RED}❌ BLOCKED: Notion API Token detected${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+fi
+
+# ===========================================
+# 3. SCAN MARKDOWN FILES FOR CREDENTIALS
+# ===========================================
+MD_FILES=$(echo "$STAGED_FILES" | grep -E '\.md$' || true)
+if [ -n "$MD_FILES" ]; then
+    for md_file in $MD_FILES; do
+        CONTENT=$(git show "HEAD:$md_file" 2>/dev/null || echo "")
+        # Check if file contains example credentials that look real
+        if echo "$CONTENT" | grep -qE "(sk-|ghp_|AKIA|glpat-).*="; then
+            echo -e "${RED}❌ BLOCKED: Credentials found in $md_file${NC}"
+            ERRORS=$((ERRORS + 1))
+        fi
+    done
+fi
+
+# ===========================================
+# 4. CHECK DEBUG CODE
+# ===========================================
+DIFF_CONTENT=$(git diff --cached -p --diff-filter=ACM)
+DEBUG_CODE=$(echo "$DIFF_CONTENT" | grep -cE "^\+.*(var_dump|dd\(|dump\(|console\.log)\(" 2>/dev/null || echo "0")
+if [ "$DEBUG_CODE" -gt 0 ]; then
+    echo -e "${YELLOW}⚠️  WARNING: Debug code detected${NC}"
+fi
+
+# ===========================================
+# 5. CHECK PHP SYNTAX
+# ===========================================
+echo -e "${YELLOW}   Checking PHP syntax...${NC}"
+PHP_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.php$' || true)
+for file in $PHP_FILES; do
+    if ! php -l "$file" > /dev/null 2>&1; then
+        echo -e "${RED}❌ PHP syntax error: $file${NC}"
+        ERRORS=$((ERRORS + 1))
+    fi
+done
+
+# ===========================================
+# 6. CHECK JS/TS SYNTAX
+# ===========================================
+echo -e "${YELLOW}   Checking JS/TS syntax...${NC}"
+JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|ts|jsx|tsx)$' || true)
+if [ -n "$JS_FILES" ] && command -v node &> /dev/null; then
+    for file in $JS_FILES; do
+        if ! node --check "$file" 2>/dev/null; then
+            if command -v npx &> /dev/null; then
+                npx tsc --noEmit --skipLibCheck "$file" 2>/dev/null || true
+            fi
+        fi
+    done
+fi
+
+# ===========================================
+# RESULT
+# ===========================================
+if [ $ERRORS -gt 0 ]; then
+    echo ""
+    echo -e "${RED}❌ PRE-COMMIT BLOCKED: $ERRORS security violation(s)${NC}"
+    echo ""
+    echo "Security rules:"
+    echo "  - NEVER commit .env files (use .env.example)"
+    echo "  - NEVER commit API keys, tokens, passwords"
+    echo "  - Check Markdown files for leaked credentials"
+    echo ""
+    echo "To bypass (DANGEROUS): git commit --no-verify -m 'message'"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Security checks passed!${NC}"
+
+# Optional linting
+if [ -f "backend/vendor/bin/pint" ] && git diff --cached --name-only | grep -qE '\.php$'; then
+    echo -e "${YELLOW}   Running Laravel Pint...${NC}"
+    git diff --cached --name-only --diff-filter=ACM | grep -E '\.php$' | xargs -I {} ./backend/vendor/bin/pint --test {} 2>/dev/null || true
+fi
+
+exit 0

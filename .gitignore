@@ -1,0 +1,27 @@
+/vendor/
+/node_modules/
+/.env
+/.env.backup
+/.env.production
+/storage/*.key
+/storage/pail-*.log
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.idea
+/.vscode
+*.swp
+*.swo
+.DS_Store
+
+# Estudos locais (não subir)
+/study/
+
+# Builds
+backend/build/
+frontend/dist/
+frontend/node_modules/
+
+# Logs
+*.log
