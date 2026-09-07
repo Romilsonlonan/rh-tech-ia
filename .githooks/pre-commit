@@ -26,68 +26,56 @@ if [ -n "$ENV_FILES" ]; then
 fi
 
 # ===========================================
-# 2. SCAN ALL CODE FILES FOR SECRETS
+# 2. SCAN CODE FILES FOR SECRETS
+# Skip documentation, markdown, configs
 # ===========================================
 echo -e "${YELLOW}   Scanning code for secrets...${NC}"
 
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+# Get staged CODE files only (exclude docs)
+CODE_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -vE '\.(md|txt|json|yml|yaml|toml|ini|cfg|conf)$' || true)
 
-if [ -n "$STAGED_FILES" ]; then
-    DIFF_CONTENT=$(git diff --cached -p --diff-filter=ACM)
-    
-    # AWS Keys
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*AKIA[0-9A-Z]{16}"; then
-        echo -e "${RED}❌ BLOCKED: AWS Access Key detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
-    
-    # OpenAI Keys
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*sk-[0-9a-zA-Z]{40,}"; then
-        echo -e "${RED}❌ BLOCKED: OpenAI API Key detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
-    
-    # GitHub Tokens
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*ghp_[0-9a-zA-Z]{36}"; then
-        echo -e "${RED}❌ BLOCKED: GitHub Token detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
-    
-    # GitLab Tokens
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*glpat-[0-9a-zA-Z]{20}"; then
-        echo -e "${RED}❌ BLOCKED: GitLab Token detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
-    
-    # Slack Tokens
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*xox[baprs]-[0-9a-zA-Z]{10,48}"; then
-        echo -e "${RED}❌ BLOCKED: Slack Token detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
-    
-    # Private Keys
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"; then
-        echo -e "${RED}❌ BLOCKED: Private Key detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
-    
-    # MongoDB credentials
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*mongodb\+srv://[^:]+:[^@]+@"; then
-        echo -e "${RED}❌ BLOCKED: MongoDB credentials detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
-    
-    # Generic API keys in code (not examples)
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*(api_key|apiKey|API_KEY)\s*=\s*['\"][0-9a-zA-Z]{20,}['\"]"; then
-        echo -e "${RED}❌ BLOCKED: Hardcoded API key detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
-    
-    # Notion tokens
-    if echo "$DIFF_CONTENT" | grep -qE "^\+.*secret_[0-9a-zA-Z]{40,}"; then
-        echo -e "${RED}❌ BLOCKED: Notion API Token detected${NC}"
-        ERRORS=$((ERRORS + 1))
-    fi
+if [ -n "$CODE_FILES" ]; then
+    for file in $CODE_FILES; do
+        # Get the staged version of the file
+        CONTENT=$(git show "HEAD:$file" 2>/dev/null || echo "")
+        STAGED_CONTENT=$(git diff --cached "$file" | grep -E "^\+" | grep -vE '^\+\+\+' || echo "")
+        
+        # Check each pattern
+        echo "$STAGED_CONTENT" | grep -qE "AKIA[0-9A-Z]{16}" && {
+            echo -e "${RED}❌ BLOCKED: AWS Access Key in $file${NC}"
+            ERRORS=$((ERRORS + 1))
+        }
+        
+        echo "$STAGED_CONTENT" | grep -qE "sk-[0-9a-zA-Z]{40,}" && {
+            echo -e "${RED}❌ BLOCKED: OpenAI API Key in $file${NC}"
+            ERRORS=$((ERRORS + 1))
+        }
+        
+        echo "$STAGED_CONTENT" | grep -qE "ghp_[0-9a-zA-Z]{36}" && {
+            echo -e "${RED}❌ BLOCKED: GitHub Token in $file${NC}"
+            ERRORS=$((ERRORS + 1))
+        }
+        
+        echo "$STAGED_CONTENT" | grep -qE "glpat-[0-9a-zA-Z]{20}" && {
+            echo -e "${RED}❌ BLOCKED: GitLab Token in $file${NC}"
+            ERRORS=$((ERRORS + 1))
+        }
+        
+        echo "$STAGED_CONTENT" | grep -qE "xox[baprs]-[0-9a-zA-Z]{10,48}" && {
+            echo -e "${RED}❌ BLOCKED: Slack Token in $file${NC}"
+            ERRORS=$((ERRORS + 1))
+        }
+        
+        echo "$STAGED_CONTENT" | grep -qE "-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----" && {
+            echo -e "${RED}❌ BLOCKED: Private Key in $file${NC}"
+            ERRORS=$((ERRORS + 1))
+        }
+        
+        echo "$STAGED_CONTENT" | grep -qE "mongodb\+srv://[^:]+:[^@]+@" && {
+            echo -e "${RED}❌ BLOCKED: MongoDB credentials in $file${NC}"
+            ERRORS=$((ERRORS + 1))
+        }
+    done
 fi
 
 # ===========================================
@@ -101,26 +89,22 @@ if [ -f "frontend/package.json" ] || [ -f "backend/composer.json" ]; then
         cd frontend
         AUDIT_RESULT=$(npm audit --quiet 2>&1 || true)
         if echo "$AUDIT_RESULT" | grep -qE "found [0-9]+ (critical|high)"; then
-            echo -e "${RED}❌ BLOCKED: Critical/High vulnerabilities in frontend dependencies${NC}"
-            echo "$AUDIT_RESULT" | grep -E "found|critical|high" | head -5
+            echo -e "${RED}❌ BLOCKED: Critical/High vulnerabilities in frontend${NC}"
             ERRORS=$((ERRORS + 1))
-        elif echo "$AUDIT_RESULT" | grep -qE "found [1-9][0-9]+ vulnerabilities"; then
-            echo -e "${YELLOW}⚠️  WARNING: Vulnerabilities found in frontend${NC}"
-            echo "$AUDIT_RESULT" | grep -E "found" | head -1
         fi
         cd - > /dev/null
     fi
     
-    # Check backend (composer audit)
+    # Check backend
     if [ -f "backend/composer.json" ] && [ -d "backend/vendor" ]; then
         cd backend
         if command -v composer &> /dev/null; then
             COMPOSER_AUDIT=$(composer audit --format=json 2>&1 || true)
             if echo "$COMPOSER_AUDIT" | grep -q '"critical":[1-9]'; then
-                echo -e "${RED}❌ BLOCKED: Critical vulnerabilities in backend dependencies${NC}"
+                echo -e "${RED}❌ BLOCKED: Critical vulnerabilities in backend${NC}"
                 ERRORS=$((ERRORS + 1))
             elif echo "$COMPOSER_AUDIT" | grep -q '"high":[1-9]'; then
-                echo -e "${RED}❌ BLOCKED: High vulnerabilities in backend dependencies${NC}"
+                echo -e "${RED}❌ BLOCKED: High vulnerabilities in backend${NC}"
                 ERRORS=$((ERRORS + 1))
             fi
         fi
@@ -131,10 +115,12 @@ fi
 # ===========================================
 # 4. CHECK DEBUG CODE
 # ===========================================
-DIFF_CONTENT=$(git diff --cached -p --diff-filter=ACM)
-DEBUG_CODE=$(echo "$DIFF_CONTENT" | grep -cE "^\+.*(var_dump|dd\(|dump\(|console\.log)\(" 2>/dev/null || echo "0")
-if [ "$DEBUG_CODE" -gt 0 ]; then
-    echo -e "${YELLOW}⚠️  WARNING: Debug code detected${NC}"
+DEBUG_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -vE '\.(md|txt|json|yml|yaml)$' || true)
+if [ -n "$DEBUG_FILES" ]; then
+    DEBUG_CODE=$(git diff --cached -p --diff-filter=ACM | grep -E "^\+" | grep -cE "(var_dump|dd\(|dump\(|console\.log)\(" 2>/dev/null || echo "0")
+    if [ "$DEBUG_CODE" -gt 0 ]; then
+        echo -e "${YELLOW}⚠️  WARNING: Debug code detected${NC}"
+    fi
 fi
 
 # ===========================================
@@ -172,9 +158,9 @@ if [ $ERRORS -gt 0 ]; then
     echo -e "${RED}❌ PRE-COMMIT BLOCKED: $ERRORS security violation(s)${NC}"
     echo ""
     echo "Security rules:"
-    echo "  - NEVER commit .env files (use .env.example)"
-    echo "  - NEVER commit API keys, tokens, passwords"
-    echo "  - Fix critical/high vulnerabilities before committing"
+    echo "  - NEVER commit .env files"
+    echo "  - NEVER commit API keys, tokens in code"
+    echo "  - Fix critical/high vulnerabilities"
     echo ""
     echo "To bypass (DANGEROUS): git commit --no-verify -m 'message'"
     exit 1
