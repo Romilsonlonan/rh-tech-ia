@@ -1,47 +1,222 @@
-<laravel-boost-guidelines>
-# Laravel Application
+# RH Tech IA - Agente Claude
 
-This repository contains a Laravel application. Complete the following setup before working on the user's request.
+## Visão Geral
 
-## Prerequisites
+Este é um projeto Laravel 13 com agentes de IA autônomos para processos de RH. O sistema utiliza OpenTelemetry para observabilidade completa.
 
-Verify that PHP and Composer are available:
+---
 
-```sh
-php -v
-composer -V
+## 🏗️ Arquitetura do Sistema
+
+```
+Frontend (React + TypeScript + Tailwind v4)
+                │
+                ▼
+    ┌───────────────────────┐
+    │   API Gateway/Laravel │
+    │   Auth: Sanctum       │
+    │   Security Middleware │
+    └───────────────────────┘
+                │
+    ┌───────────┼───────────┐
+    ▼           ▼           ▼
+┌────────┐ ┌────────┐ ┌──────────┐
+│  AI    │ │Vector  │ │   MCP    │
+│ Agents │ │Store   │ │  Client  │
+└────────┘ └────────┘ └──────────┘
+    │           │           │
+    └───────────┼───────────┘
+                ▼
+        ┌─────────────┐
+        │ OpenTelemetry│
+        │  (Traces)   │
+        └─────────────┘
 ```
 
-If either command is unavailable, detect the user's operating system and install the prerequisites with the appropriate command:
+---
 
-macOS:
+## 🔑 Configuração de Secrets
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/mac/8.5)"
+### Variáveis Obrigatórias
+
+```env
+# OPENAI
+OPENAI_API_KEY=sk-...
+
+# DATABASE
+DB_CONNECTION=pgsql
+DB_HOST=postgres
+DB_PORT=5432
+DB_DATABASE=rhtechia
+DB_USERNAME=postgres
+DB_PASSWORD=********
+
+# REDIS
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# S3/MINIO
+AWS_ACCESS_KEY_ID=minioadmin
+AWS_SECRET_ACCESS_KEY=minioadmin
+AWS_BUCKET=rhtechia
+AWS_ENDPOINT=http://minio:9000
+
+# OPENTELEMETRY
+OTEL_ENABLED=true
+OTEL_SERVICE_NAME=rhtechia-backend
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 ```
 
-Windows PowerShell:
+---
 
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://php.new/install/windows/8.5'))
+## 🤖 Agentes Disponíveis
+
+### RecruitmentAgent
+
+```php
+use App\AI\Agents\RecruitmentAgent;
+
+$agent = app(RecruitmentAgent::class);
+$result = $agent->processCandidate($cvData, $vacancyId);
 ```
 
-Linux:
+**Responsabilidades:**
+- Análise de currículos
+- Matching de candidatos com vagas
+- Embedding e busca vetorial
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/linux/8.5)"
+### InterviewAgent
+
+```php
+use App\AI\Agents\InterviewAgent;
+
+$agent = app(InterviewAgent::class);
+$result = $agent->conductInterview($candidateId, $vacancyId);
 ```
 
-After installation, ask the user to restart their terminal. If the agent needs the restarted shell to continue, ask the user to reopen their terminal and rerun their original prompt.
+**Responsabilidades:**
+- Geração de perguntas
+- Análise de respostas
+- Avaliação de soft skills
 
-## Agent Setup
+### AnalysisAgent
 
-Install Laravel Boost from the application root before making application changes:
+```php
+use App\AI\Agents\AnalysisAgent;
 
-```sh
-composer require laravel/boost --dev
-php artisan boost:install
+$agent = app(AnalysisAgent::class);
+$report = $agent->generateInsights($dateRange);
 ```
 
-Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
-</laravel-boost-guidelines>
+**Responsabilidades:**
+- Métricas de recrutamento
+- Previsões de turnover
+- Análise de tendências
+
+---
+
+## 📊 OpenTelemetry
+
+### Estrutura de Spans
+
+```php
+$telemetry = app(\App\Telemetry\OpenTelemetryService::class);
+
+// Span principal do agente
+$rootSpan = $telemetry->startSpan('agent.recruitment.process');
+
+// Sub-spans
+$span = $telemetry->startSpan('agent.search_vectorstore');
+$span?->setAttribute('query.count', 5);
+$span?->end();
+
+// Registrar exceção
+$telemetry->recordException($e, $rootSpan);
+
+$rootSpan?->end();
+```
+
+### Atributos Importantes
+
+```php
+$span->setAttribute('agent.name', 'recruitment');
+$span->setAttribute('agent.task', 'cv_analysis');
+$span->setAttribute('candidate.id', '123');
+$span->setAttribute('embedding.model', 'text-embedding-3-small');
+$span->setAttribute('score.final', 0.87);
+```
+
+### Endpoints de Observabilidade
+
+| Serviço | URL |
+|---------|-----|
+| Jaeger UI | http://localhost:16686 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 |
+
+---
+
+## 🛡️ Regras de Segurança
+
+### ✅ Obrigatório
+
+1. Todos os secrets via variáveis de ambiente
+2. Validação de inputs com `Validator`
+3. Sanitização de dados antes de armazenar
+4. Logging via `Log::channel('daily')`
+
+### ❌ Proibido
+
+1. Credenciais hardcoded
+2. `.env` em commits
+3. Secrets em logs ou spans
+4. SQL queries sem prepared statements
+
+---
+
+## 📁 Pastas Importantes
+
+```
+backend/
+├── app/AI/Agents/        # Agentes de IA
+├── app/AI/VectorStore/   # Vector store
+├── app/AI/MCP/           # MCP client
+├── app/Telemetry/        # OpenTelemetry
+├── app/Http/Controllers/Api/V1/  # API controllers
+├── app/Http/Middleware/  # Security headers
+├── docs/guides/          # Guias técnicos
+└── tests/               # Testes
+```
+
+---
+
+## 🚀 Comandos Úteis
+
+```bash
+# Instalar dependências
+composer install
+
+# Gerar app key
+php artisan key:generate
+
+# Rodar migrations
+php artisan migrate
+
+# Iniciar servidor
+php artisan serve
+
+# Rodar testes
+php artisan test
+
+# Verificar código
+./vendor/bin/pint
+```
+
+---
+
+## 📚 Guias
+
+- [Observability](./docs/guides/observability.md)
+- [Security](./docs/guides/security.md)
+- [Getting Started](./docs/guides/getting-started.md)
+- [API Reference](./docs/api/index.md)
