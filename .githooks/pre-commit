@@ -30,7 +30,6 @@ fi
 # ===========================================
 echo -e "${YELLOW}   Scanning code for secrets...${NC}"
 
-# Get ALL staged files
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
 
 if [ -n "$STAGED_FILES" ]; then
@@ -92,18 +91,41 @@ if [ -n "$STAGED_FILES" ]; then
 fi
 
 # ===========================================
-# 3. SCAN MARKDOWN FILES FOR CREDENTIALS
+# 3. CHECK NPM AUDIT FOR VULNERABILITIES
 # ===========================================
-MD_FILES=$(echo "$STAGED_FILES" | grep -E '\.md$' || true)
-if [ -n "$MD_FILES" ]; then
-    for md_file in $MD_FILES; do
-        CONTENT=$(git show "HEAD:$md_file" 2>/dev/null || echo "")
-        # Check if file contains example credentials that look real
-        if echo "$CONTENT" | grep -qE "(sk-|ghp_|AKIA|glpat-).*="; then
-            echo -e "${RED}❌ BLOCKED: Credentials found in $md_file${NC}"
+if [ -f "frontend/package.json" ] || [ -f "backend/composer.json" ]; then
+    echo -e "${YELLOW}   Checking for security vulnerabilities...${NC}"
+    
+    # Check frontend
+    if [ -f "frontend/package.json" ] && [ -d "frontend/node_modules" ]; then
+        cd frontend
+        AUDIT_RESULT=$(npm audit --quiet 2>&1 || true)
+        if echo "$AUDIT_RESULT" | grep -qE "found [0-9]+ (critical|high)"; then
+            echo -e "${RED}❌ BLOCKED: Critical/High vulnerabilities in frontend dependencies${NC}"
+            echo "$AUDIT_RESULT" | grep -E "found|critical|high" | head -5
             ERRORS=$((ERRORS + 1))
+        elif echo "$AUDIT_RESULT" | grep -qE "found [1-9][0-9]+ vulnerabilities"; then
+            echo -e "${YELLOW}⚠️  WARNING: Vulnerabilities found in frontend${NC}"
+            echo "$AUDIT_RESULT" | grep -E "found" | head -1
         fi
-    done
+        cd - > /dev/null
+    fi
+    
+    # Check backend (composer audit)
+    if [ -f "backend/composer.json" ] && [ -d "backend/vendor" ]; then
+        cd backend
+        if command -v composer &> /dev/null; then
+            COMPOSER_AUDIT=$(composer audit --format=json 2>&1 || true)
+            if echo "$COMPOSER_AUDIT" | grep -q '"critical":[1-9]'; then
+                echo -e "${RED}❌ BLOCKED: Critical vulnerabilities in backend dependencies${NC}"
+                ERRORS=$((ERRORS + 1))
+            elif echo "$COMPOSER_AUDIT" | grep -q '"high":[1-9]'; then
+                echo -e "${RED}❌ BLOCKED: High vulnerabilities in backend dependencies${NC}"
+                ERRORS=$((ERRORS + 1))
+            fi
+        fi
+        cd - > /dev/null
+    fi
 fi
 
 # ===========================================
@@ -152,7 +174,7 @@ if [ $ERRORS -gt 0 ]; then
     echo "Security rules:"
     echo "  - NEVER commit .env files (use .env.example)"
     echo "  - NEVER commit API keys, tokens, passwords"
-    echo "  - Check Markdown files for leaked credentials"
+    echo "  - Fix critical/high vulnerabilities before committing"
     echo ""
     echo "To bypass (DANGEROUS): git commit --no-verify -m 'message'"
     exit 1
